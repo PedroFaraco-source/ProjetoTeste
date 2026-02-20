@@ -1,0 +1,110 @@
+name: Release Tag
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create-tag:
+    name: Create Git Tag
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == github.event.repository.default_branch
+      )
+    concurrency:
+      group: release-tag-${{ github.event.repository.default_branch }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || github.event.workflow_run.head_sha }}
+
+      - name: Fetch tags
+        run: git fetch --force --tags origin
+
+      - name: Resolve next semantic version
+        id: semver
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git tag --points-at HEAD | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            existing_tag="$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)"
+            echo "tag=$existing_tag" >> "$GITHUB_OUTPUT"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          latest_tag="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1 || true)"
+
+          major=0
+          minor=0
+          patch=0
+
+          if [[ -n "$latest_tag" ]] && [[ "$latest_tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+          fi
+
+          if [[ -n "$latest_tag" ]]; then
+            commit_messages="$(git log "${latest_tag}..HEAD" --pretty=%B)"
+          else
+            commit_messages="$(git log HEAD --pretty=%B)"
+          fi
+
+          bump="patch"
+          if echo "$commit_messages" | grep -Eq 'BREAKING CHANGE|^[a-zA-Z]+(\([^)]+\))?!:'; then
+            bump="major"
+          elif echo "$commit_messages" | grep -Eq '^feat(\([^)]+\))?:'; then
+            bump="minor"
+          fi
+
+          case "$bump" in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+          esac
+
+          next_tag="v${major}.${minor}.${patch}"
+          echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "bump=$bump" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        if: steps.semver.outputs.created == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.semver.outputs.tag }}" -m "release: ${{ steps.semver.outputs.tag }}"
+          git push origin "${{ steps.semver.outputs.tag }}"
+
+      - name: Print summary
+        shell: bash
+        run: |
+          echo "Tag: ${{ steps.semver.outputs.tag }}"
+          echo "Created: ${{ steps.semver.outputs.created }}"
+          if [[ "${{ steps.semver.outputs.created }}" == "true" ]]; then
+            echo "Bump type: ${{ steps.semver.outputs.bump }}"
+          fi
