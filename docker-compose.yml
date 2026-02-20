@@ -1,0 +1,55 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: app/infrastructure/docker/Dockerfile
+    container_name: projetombras-api
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8080:8000"
+    command: ["python", "-m", "app.infrastructure.runtime.start_api"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - ./:/app
+
+  worker:
+    build:
+      context: .
+      dockerfile: app/infrastructure/docker/Dockerfile
+    container_name: projetombras-worker
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["python", "-m", "app.infrastructure.messaging.consumers.ingestor_consumer"]
+    restart: unless-stopped
+    volumes:
+      - ./:/app
+
+  outbox-publisher:
+    build:
+      context: .
+      dockerfile: app/infrastructure/docker/Dockerfile
+    container_name: projetombras-outbox-publisher
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["python", "-m", "app.infrastructure.messaging.consumers.outbox_publisher"]
+    restart: unless-stopped
+    volumes:
+      - ./:/app
