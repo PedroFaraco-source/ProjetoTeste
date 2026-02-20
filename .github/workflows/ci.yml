@@ -18,9 +18,9 @@ jobs:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
           ACCEPT_EULA: Y
-          MSSQL_SA_PASSWORD: YourStrong!Passw0rd123
+          MSSQL_SA_PASSWORD: ChangeMe_StrongPassword123!
         ports:
-          - 1433:1433
+          - 1434:1433
 
     env:
       APP_ENV: local
@@ -29,10 +29,10 @@ jobs:
       API_HTTP_PORT: "8000"
 
       SQLSERVER_HOST: localhost
-      SQLSERVER_PORT: "1433"
+      SQLSERVER_PORT: "1434"
       SQLSERVER_DATABASE: ProjetoMBras
       SQLSERVER_USER: sa
-      SQLSERVER_PASSWORD: YourStrong!Passw0rd123
+      SQLSERVER_PASSWORD: ChangeMe_StrongPassword123!
       SQLSERVER_ODBC_DRIVER: ODBC Driver 18 for SQL Server
 
       ENABLE_RABBIT: "0"
@@ -81,15 +81,16 @@ jobs:
       - name: Wait for SQL Server
         run: |
           python - <<'PY'
+          import os
           import time
           import pyodbc
 
           conn_str = (
               "DRIVER={ODBC Driver 18 for SQL Server};"
-              "SERVER=localhost,1433;"
+              f"SERVER=localhost,{os.getenv('SQLSERVER_PORT', '1434')};"
               "DATABASE=master;"
-              "UID=sa;"
-              "PWD=YourStrong!Passw0rd123;"
+              f"UID={os.getenv('SQLSERVER_USER', 'sa')};"
+              f"PWD={os.getenv('SQLSERVER_PASSWORD', '')};"
               "TrustServerCertificate=yes;"
           )
 
@@ -107,8 +108,39 @@ jobs:
                   time.sleep(2)
           PY
 
+      - name: Rebuild and start containers (no cache)
+        run: |
+          docker compose down --remove-orphans
+          docker compose pull --ignore-pull-failures
+          docker compose build --no-cache
+          docker compose up -d --force-recreate
+
+      - name: Wait for API health
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8080/health >/dev/null; then
+              echo "API saudavel em http://localhost:8080/health"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API nao ficou saudavel a tempo"
+          docker compose ps
+          docker compose logs --tail=200 api worker outbox-publisher
+          exit 1
+
       - name: Bootstrap DB and run migrations
         run: python -m app.infrastructure.runtime.migrate
 
       - name: Run tests
         run: pytest -q
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --tail=200
+
+      - name: Tear down containers
+        if: always()
+        run: docker compose down --remove-orphans
