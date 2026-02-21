@@ -5,6 +5,11 @@ on:
     workflows: ["CI"]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Versao manual (ex.: 1.2.0 ou v1.2.0). Se vazio, calcula automaticamente."
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -37,8 +42,33 @@ jobs:
       - name: Resolve next semantic version
         id: semver
         shell: bash
+        env:
+          MANUAL_VERSION: ${{ github.event.inputs.version }}
         run: |
           set -euo pipefail
+
+          manual_tag="${MANUAL_VERSION:-}"
+          if [[ -n "$manual_tag" ]]; then
+            if [[ "$manual_tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              manual_tag="v${manual_tag}"
+            fi
+
+            if ! [[ "$manual_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Formato invalido para versao manual: $manual_tag"
+              exit 1
+            fi
+
+            if git rev-parse -q --verify "refs/tags/${manual_tag}" >/dev/null; then
+              echo "tag=$manual_tag" >> "$GITHUB_OUTPUT"
+              echo "created=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "tag=$manual_tag" >> "$GITHUB_OUTPUT"
+            echo "created=true" >> "$GITHUB_OUTPUT"
+            echo "bump=manual" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           if git tag --points-at HEAD | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
             existing_tag="$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)"
