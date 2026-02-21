@@ -105,3 +105,22 @@ def extract_items_count(payload: Any) -> int:
     if isinstance(payload, list):
         return len(payload)
     return 0
+
+
+def compact_payload_for_audit(payload: Any) -> Any:
+    if isinstance(payload, dict):
+        compacted: dict[str, Any] = {}
+        for key, value in payload.items():
+            key_text = str(key)
+            if key_text in {'items', 'messages'} and isinstance(value, list):
+                compacted[f'{key_text}_count'] = len(value)
+                compacted['first_item_sample'] = mask_for_log(value[0]) if value else None
+                continue
+            compacted[key_text] = mask_for_log(value, parent_key=key_text)
+        return compacted
+    if isinstance(payload, list):
+        return {
+            'items_count': len(payload),
+            'first_item_sample': mask_for_log(payload[0]) if payload else None,
+        }
+    return mask_for_log(payload)

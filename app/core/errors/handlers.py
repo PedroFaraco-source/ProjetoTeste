@@ -8,7 +8,12 @@ from fastapi.responses import JSONResponse
 
 from app.core.errors.http_exceptions import ApiValidationError
 from app.core.logging.masking import sanitize_error_text, truncate_text
-from app.infrastructure.monitoring.prometheus import bounded_exception_type, http_exception_total, status_class_from_code
+from app.infrastructure.monitoring.prometheus import (
+    bounded_exception_type,
+    http_exception_total,
+    http_exceptions_total,
+    status_class_from_code,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +27,14 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApiValidationError)
     async def _api_validation_handler(request: Request, exc: ApiValidationError):
         exception_type = bounded_exception_type('ApiValidationError')
+        metric_path = request.url.path
+        http_exceptions_total.labels(method=request.method, path=metric_path, exception_type=exception_type).inc()
         http_exception_total.labels(exception_type=exception_type, status_class=status_class_from_code(exc.status_code)).inc()
         correlation_id = str(getattr(request.state, 'correlation_id', '')).strip()
         request.state.observability_error = {
             'error_type': exception_type,
             'error_message': sanitize_error_text(exc.error),
+            'error_stage': 'validation',
         }
         content = {'error': exc.error, 'code': exc.code}
         if correlation_id:
@@ -36,6 +44,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def _unexpected_error_handler(request: Request, exc: Exception):
         exception_type = bounded_exception_type(exc.__class__.__name__)
+        metric_path = request.url.path
+        http_exceptions_total.labels(method=request.method, path=metric_path, exception_type=exception_type).inc()
         http_exception_total.labels(exception_type=exception_type, status_class='5xx').inc()
 
         safe_error_message = sanitize_error_text(str(exc) or 'Falha interna sem detalhes.')
@@ -44,6 +54,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             'error_type': exception_type,
             'error_message': safe_error_message,
             'stacktrace': safe_stacktrace,
+            'error_stage': 'unknown',
         }
 
         correlation_id = str(getattr(request.state, 'correlation_id', '')).strip() or 'sem-correlation-id'

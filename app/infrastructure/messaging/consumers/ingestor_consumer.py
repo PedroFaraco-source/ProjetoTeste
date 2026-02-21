@@ -22,6 +22,7 @@ from app.infrastructure.messaging.consumers.rabbit_consumer import RabbitConsume
 from app.infrastructure.monitoring.prometheus import (
     consumer_failures_total,
     consumer_messages_total,
+    consumer_processed_total,
     consumer_processing_duration_seconds,
     e2e_time_to_indexed_seconds,
     e2e_time_to_processed_seconds,
@@ -134,6 +135,7 @@ def _build_elastic_document(event: dict[str, Any], normalized_payload: dict[str,
 
 def _observe_consumer_metrics(*, event_name: str, result: str, total_started: float) -> None:
     event_name_safe = event_name if event_name in SUPPORTED_EVENTS else 'unknown'
+    consumer_processed_total.labels(result=result).inc()
     consumer_messages_total.labels(event_name=event_name_safe, result=result).inc()
     consumer_processing_duration_seconds.labels(event_name=event_name_safe, result=result).observe(
         max(perf_counter() - total_started, 0.0)

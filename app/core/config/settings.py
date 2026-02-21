@@ -80,14 +80,16 @@ class Settings(BaseModel):
     app_timezone: str = 'America/Sao_Paulo'
     tz: str = 'America/Sao_Paulo'
 
-    rabbitmq_url: str = 'amqp://admin:admin123@localhost:5672/'
+    rabbitmq_url: str = 'amqp://admin:admin123@localhost:4000/'
     rabbitmq_exchange: str = 'api.events'
     rabbitmq_routing_key_analyze: str = 'mbras.analyze'
     rabbitmq_queue_analyze: str = 'mbras.analyze.queue'
 
-    elasticsearch_url: str = 'http://elasticsearch:9200'
-    kibana_url: str = 'http://kibana:5601'
+    elasticsearch_url: str = 'http://localhost:5000'
+    kibana_url: str = 'http://localhost:5001'
     elasticsearch_index_prefix: str = 'projetombras-api-events'
+    elastic_audit_index_prefix: str = 'projetombras-audit-logs'
+    elastic_audit_template_name: str = 'projetombras-audit-logs-template'
     elastic_logs_index_prefix: str = 'projetombras-logs'
     elastic_logs_template_name: str = 'projetombras-logs-template'
 
@@ -117,6 +119,7 @@ class Settings(BaseModel):
 
     rabbit_publish_timeout_seconds: int = 2
     elastic_timeout_seconds: int = 2
+    elastic_audit_bulk_size: int = 500
 
     elastic_http_log_queue_size: int = 5000
     elastic_http_log_batch_size: int = 100
@@ -151,13 +154,20 @@ def get_settings() -> Settings:
         api_http_port=_to_int(os.getenv('API_HTTP_PORT'), 8000),
         app_timezone=os.getenv('APP_TIMEZONE', 'America/Sao_Paulo').strip() or 'America/Sao_Paulo',
         tz=os.getenv('TZ', 'America/Sao_Paulo').strip() or 'America/Sao_Paulo',
-        rabbitmq_url=_resolve_service_url(os.getenv('RABBITMQ_URL', 'amqp://admin:admin123@localhost:5672/').strip()),
+        rabbitmq_url=_resolve_service_url(os.getenv('RABBITMQ_URL', 'amqp://admin:admin123@localhost:4000/').strip()),
         rabbitmq_exchange=os.getenv('RABBITMQ_EXCHANGE', 'api.events').strip(),
         rabbitmq_routing_key_analyze=os.getenv('RABBITMQ_ROUTING_KEY_ANALYZE', 'mbras.analyze').strip(),
         rabbitmq_queue_analyze=os.getenv('RABBITMQ_QUEUE_ANALYZE', 'mbras.analyze.queue').strip(),
-        elasticsearch_url=_resolve_service_url(os.getenv('ELASTICSEARCH_URL', 'http://elasticsearch:9200').strip()),
-        kibana_url=os.getenv('KIBANA_URL', 'http://kibana:5601').strip(),
+        elasticsearch_url=_resolve_service_url(os.getenv('ELASTICSEARCH_URL', 'http://localhost:5000').strip()),
+        kibana_url=os.getenv('KIBANA_URL', 'http://localhost:5001').strip(),
         elasticsearch_index_prefix=os.getenv('ELASTICSEARCH_INDEX_PREFIX', 'projetombras-api-events').strip(),
+        elastic_audit_index_prefix=(
+            os.getenv('ELASTIC_AUDIT_INDEX_PREFIX', 'projetombras-audit-logs').strip() or 'projetombras-audit-logs'
+        ),
+        elastic_audit_template_name=(
+            os.getenv('ELASTIC_AUDIT_TEMPLATE_NAME', 'projetombras-audit-logs-template').strip()
+            or 'projetombras-audit-logs-template'
+        ),
         elastic_logs_index_prefix=os.getenv('ELASTIC_LOGS_INDEX_PREFIX', 'projetombras-logs').strip() or 'projetombras-logs',
         elastic_logs_template_name=(
             os.getenv('ELASTIC_LOGS_TEMPLATE_NAME', 'projetombras-logs-template').strip() or 'projetombras-logs-template'
@@ -186,6 +196,7 @@ def get_settings() -> Settings:
         outbox_worker_id=(os.getenv('OUTBOX_WORKER_ID', 'outbox-worker-local').strip() or 'outbox-worker-local'),
         rabbit_publish_timeout_seconds=_to_int(os.getenv('RABBIT_PUBLISH_TIMEOUT_SECONDS'), 2),
         elastic_timeout_seconds=_to_int(os.getenv('ELASTIC_TIMEOUT_SECONDS'), 2),
+        elastic_audit_bulk_size=_to_int(os.getenv('ELASTIC_AUDIT_BULK_SIZE'), 500),
         elastic_http_log_queue_size=_to_int(os.getenv('ELASTIC_HTTP_LOG_QUEUE_SIZE'), 5000),
         elastic_http_log_batch_size=_to_int(os.getenv('ELASTIC_HTTP_LOG_BATCH_SIZE'), 100),
         elastic_http_log_flush_interval_ms=_to_int(os.getenv('ELASTIC_HTTP_LOG_FLUSH_INTERVAL_MS'), 1000),
@@ -197,3 +208,4 @@ def get_settings() -> Settings:
 def reload_settings() -> Settings:
     get_settings.cache_clear()
     return get_settings()
+    

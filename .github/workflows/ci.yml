@@ -41,9 +41,9 @@ jobs:
       RABBITMQ_ROUTING_KEY_ANALYZE: mbras.analyze
       RABBITMQ_QUEUE_ANALYZE: mbras.analyze.queue
 
-      ELASTICSEARCH_URL: http://localhost:9200
+      ELASTICSEARCH_URL: http://localhost:5000
       ELASTICSEARCH_INDEX_PREFIX: projetombras-api-events
-      KIBANA_URL: http://localhost:5601
+      KIBANA_URL: http://localhost:5001
 
       PROMETHEUS_METRICS_ENABLED: "true"
       DB_POOL_SIZE: "5"

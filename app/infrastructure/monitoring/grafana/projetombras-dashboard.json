@@ -202,7 +202,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(http_requests_total{job=~\"$job\",instance=~\"$instance\",path=~\"$path\",status=~\"4..|5..\"}[1m]))",
+          "expr": "sum(rate(http_requests_total{job=~\"$job\",instance=~\"$instance\",path=~\"$path\",status_class=~\"4xx|5xx\"}[1m]))",
           "legendFormat": "error/s",
           "range": true,
           "refId": "A"
@@ -351,7 +351,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(http_inflight_requests{job=~\"$job\",instance=~\"$instance\"})",
+          "expr": "sum(inflight_requests{job=~\"$job\",instance=~\"$instance\",path=~\"$path\"})",
           "legendFormat": "",
           "range": true,
           "refId": "A"
@@ -395,7 +395,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le, operation) (rate(tempo_db_ms_bucket{job=~\"$job\",instance=~\"$instance\"}[5m])))",
+          "expr": "1000 * histogram_quantile(0.95, sum by (le, operation) (rate(db_fast_path_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\",operation=\"fast_path\"}[5m])))",
           "legendFormat": "{{operation}}",
           "range": true,
           "refId": "A"
@@ -495,7 +495,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (path, status_class) (rate(http_requests_status_class_total{job=~\"$job\",instance=~\"$instance\",path=~\"$path\"}[5m]))",
+          "expr": "sum by (path, status_class) (rate(http_requests_total{job=~\"$job\",instance=~\"$instance\",path=~\"$path\"}[5m]))",
           "legendFormat": "{{path}} {{status_class}}",
           "range": true,
           "refId": "A"
@@ -538,7 +538,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "topk(5, sum by (path) (rate(http_requests_total{job=~\"$job\",instance=~\"$instance\",status=~\"5..\"}[5m])))",
+          "expr": "topk(5, sum by (path) (rate(http_requests_total{job=~\"$job\",instance=~\"$instance\",status_class=\"5xx\"}[5m])))",
           "format": "table",
           "instant": true,
           "legendFormat": "{{path}}",
@@ -583,8 +583,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (stage) (rate(consumer_failures_total{job=~\"$job\",instance=~\"$instance\"}[5m]))",
-          "legendFormat": "{{stage}}",
+          "expr": "sum(rate(consumer_processed_total{job=~\"$job\",instance=~\"$instance\",result=\"failed\"}[5m]))",
+          "legendFormat": "failed/s",
           "range": true,
           "refId": "A"
         }
@@ -741,7 +741,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "topk(10, sum by (exception_type) (increase(http_exception_total{job=~\"$job\",instance=~\"$instance\"}[$__range])))",
+          "expr": "topk(10, sum by (exception_type) (increase(http_exceptions_total{job=~\"$job\",instance=~\"$instance\"}[$__range])))",
           "format": "table",
           "instant": true,
           "legendFormat": "{{exception_type}}",
@@ -753,15 +753,142 @@
       "type": "table"
     },
     {
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": "${DS_ELASTIC}"
+      },
+      "description": "Ultimas chamadas HTTP indexadas no Elastic. Clique no correlation_id para abrir no Explore filtrado.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "correlation_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "Abrir no Explore (correlation_id)",
+                    "url": "/explore?orgId=1&left=%7B%22datasource%22:%22${DS_ELASTIC}%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22query%22:%22correlation_id:%5C%22${__value.raw}%5C%22%22%7D%5D%7D"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "duration_ms"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          }
+        ]
+      },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 24,
         "x": 0,
         "y": 32
       },
+      "id": 17,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "alias": "",
+          "bucketAggs": [],
+          "metrics": [
+            {
+              "id": "1",
+              "settings": {
+                "size": "200"
+              },
+              "type": "raw_data"
+            }
+          ],
+          "query": "event:\"http_request\" AND service:\"projetombras-api\"",
+          "refId": "A",
+          "timeField": "@timestamp"
+        }
+      ],
+      "title": "Ultimas chamadas HTTP (Elastic)",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "_id": true,
+              "_index": true,
+              "_score": true,
+              "_type": true
+            },
+            "indexByName": {
+              "@timestamp": 0,
+              "correlation_id": 1,
+              "method": 2,
+              "path": 3,
+              "status_code": 4,
+              "duration_ms": 5,
+              "items_count": 6,
+              "error.type": 7,
+              "error.message": 8
+            },
+            "renameByName": {
+              "@timestamp": "timestamp",
+              "error.message": "error_message",
+              "error.type": "error_type"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "desc": true,
+                "field": "timestamp"
+              }
+            ]
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
       "id": 16,
       "options": {
-        "content": "## Runbook\n\n- Find a request in Elastic by correlation_id:\n  - Open Grafana Explore\n  - Select Elastic datasource\n  - Index: `projetombras-logs-*`\n  - Query: `correlation_id:\"<id>\"`\n\n- Link metrics spikes to logs:\n  - Identify spike panel/time range here\n  - Open Explore in same time range\n  - Query by `path` and `status_code` first\n  - Narrow using `correlation_id` from failing samples\n\n- Suggested Explore query examples:\n  - `event:\"http_request\" AND status_code:[500 TO 599]`\n  - `event:\"http_request\" AND path:\"/analyze-feed\"`",
+        "content": "## Runbook\n\n- To see the exact request/response (masked), open Grafana Explore -> Elastic datasource -> filter correlation_id.\n- Index: `projetombras-audit-logs-*`\n- Example query: `correlation_id:\"<id>\"`\n\n- Link metrics spikes to logs:\n  - Identify spike panel/time range here\n  - Open Explore in same time range\n  - Query by `path` and `status_code` first\n  - Narrow using `correlation_id` from failing samples\n\n- Suggested Explore query examples:\n  - `event:\"http_request\" AND status_code:[500 TO 599]`\n  - `event:\"http_request\" AND path:\"/analyze-feed\"`",
         "mode": "markdown"
       },
       "title": "Runbook",
@@ -791,6 +918,24 @@
         "name": "DS_PROMETHEUS",
         "options": [],
         "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "Elasticsearch",
+          "value": "Elasticsearch"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Elastic Datasource",
+        "multi": false,
+        "name": "DS_ELASTIC",
+        "options": [],
+        "query": "elasticsearch",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -886,6 +1031,6 @@
   "timezone": "",
   "title": "ProjetoMBras API Overview",
   "uid": "projetombras-api-overview",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

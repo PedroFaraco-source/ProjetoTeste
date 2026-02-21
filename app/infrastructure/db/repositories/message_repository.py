@@ -337,6 +337,7 @@ class MessageRepository:
         lock_cutoff_utc: datetime,
         worker_id: str,
         limit: int,
+        event_types: list[str] | None = None,
     ) -> list[OutboxEvent]:
         stmt = (
             select(OutboxEvent)
@@ -348,6 +349,8 @@ class MessageRepository:
             .order_by(OutboxEvent.created_at_utc.asc())
             .limit(limit)
         )
+        if event_types:
+            stmt = stmt.where(OutboxEvent.event_type.in_(event_types))
         try:
             stmt = stmt.with_for_update(skip_locked=True)
         except Exception:

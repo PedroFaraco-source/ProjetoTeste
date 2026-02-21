@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.infrastructure.db.repositories.message_repository import MessageRepository
+from app.infrastructure.monitoring.prometheus import db_fast_path_duration_seconds
 from app.infrastructure.monitoring.prometheus import tempo_db_ms
 from app.shared.utils.time import app_now
 
@@ -148,6 +149,7 @@ class BatchIngestFastpathUseCase:
             + timings_ms.get('flush', 0.0)
             + timings_ms.get('commit', 0.0)
         )
+        db_fast_path_duration_seconds.labels(operation='fast_path').observe(max(db_time_ms / 1000.0, 0.0))
         tempo_db_ms.labels(operation='ingest_batch_fastpath').observe(max(db_time_ms, 0.0))
         return BatchIngestResult(batch_id=batch_id, accepted=len(prepared), timings_ms=timings_ms)
 

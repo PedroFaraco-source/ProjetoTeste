@@ -4,19 +4,14 @@ from prometheus_client import Counter, Gauge, Histogram
 
 http_requests_total = Counter(
     'http_requests_total',
-    'Total de requisicoes HTTP por metodo, path e status.',
-    ['method', 'path', 'status'],
-)
-
-http_requests_status_class_total = Counter(
-    'http_requests_status_class_total',
     'Total de requisicoes HTTP por metodo, path e classe de status.',
     ['method', 'path', 'status_class'],
 )
 
-http_inflight_requests = Gauge(
-    'http_inflight_requests',
-    'Quantidade de requisicoes HTTP em andamento.',
+http_requests_by_status_total = Counter(
+    'http_requests_by_status_total',
+    'Total de requisicoes HTTP por metodo, path e status numerico.',
+    ['method', 'path', 'status'],
 )
 
 http_request_duration_seconds = Histogram(
@@ -33,12 +28,33 @@ http_ack_duration_seconds = Histogram(
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
 )
 
+inflight_requests = Gauge(
+    'inflight_requests',
+    'Quantidade de requisicoes HTTP em andamento por path.',
+    ['path'],
+)
+
+http_exceptions_total = Counter(
+    'http_exceptions_total',
+    'Total de excecoes HTTP por metodo, path e tipo.',
+    ['method', 'path', 'exception_type'],
+)
+
+# Compatibilidade com dashboards/alertas existentes
 http_exception_total = Counter(
     'http_exception_total',
     'Total de excecoes HTTP por tipo e classe de status.',
     ['exception_type', 'status_class'],
 )
 
+db_fast_path_duration_seconds = Histogram(
+    'db_fast_path_duration_seconds',
+    'Duracao do caminho rapido no banco em segundos.',
+    ['operation'],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5),
+)
+
+# Compatibilidade
 tempo_db_ms = Histogram(
     'tempo_db_ms',
     'Tempo de caminho rapido no banco em milissegundos.',
@@ -74,9 +90,15 @@ ingest_failed_total = Counter(
     'Total de falhas de ingestao.',
 )
 
+consumer_processed_total = Counter(
+    'consumer_processed_total',
+    'Total de mensagens processadas pelo consumer por resultado.',
+    ['result'],
+)
+
 consumer_messages_total = Counter(
     'consumer_messages_total',
-    'Total de mensagens processadas pelo consumer por resultado.',
+    'Total de mensagens processadas pelo consumer por tipo de evento e resultado.',
     ['event_name', 'result'],
 )
 
@@ -118,9 +140,32 @@ elastic_bulk_errors_total = Counter(
     ['operation'],
 )
 
+elastic_audit_log_failures_total = Counter(
+    'elastic_audit_log_failures_total',
+    'Total de falhas de indexacao de logs de auditoria no Elasticsearch.',
+)
+
+# Compatibilidade
 elastic_log_failures_total = Counter(
     'elastic_log_failures_total',
     'Total de falhas ao registrar logs HTTP no Elasticsearch.',
+)
+
+elastic_retention_runs_total = Counter(
+    'elastic_retention_runs_total',
+    'Total de execucoes da rotina de retencao no Elasticsearch por resultado.',
+    ['result'],
+)
+
+elastic_retention_deleted_total = Counter(
+    'elastic_retention_deleted_total',
+    'Total de documentos removidos pela rotina de retencao no Elasticsearch.',
+)
+
+elastic_retention_duration_seconds = Histogram(
+    'elastic_retention_duration_seconds',
+    'Duracao da rotina de retencao no Elasticsearch em segundos.',
+    buckets=(0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60),
 )
 
 e2e_time_to_processed_seconds = Histogram(
