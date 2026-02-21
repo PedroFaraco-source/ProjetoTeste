@@ -19,7 +19,15 @@ from app.core.logging.setup import configure_logging
 from app.domain.services.sentiment_service import to_rfc3339_z
 from app.infrastructure.db.session import get_session_factory, init_db
 from app.infrastructure.messaging.consumers.rabbit_consumer import RabbitConsumer
-from app.infrastructure.monitoring.prometheus import ingest_failed_total, ingest_processed_total
+from app.infrastructure.monitoring.prometheus import (
+    consumer_failures_total,
+    consumer_messages_total,
+    consumer_processing_duration_seconds,
+    e2e_time_to_indexed_seconds,
+    e2e_time_to_processed_seconds,
+    ingest_failed_total,
+    ingest_processed_total,
+)
 from app.infrastructure.search.elasticsearch_client import ElasticIndexWriter
 from app.shared.utils.time import app_now, to_app_timezone
 
@@ -124,6 +132,14 @@ def _build_elastic_document(event: dict[str, Any], normalized_payload: dict[str,
     return index_name, document
 
 
+def _observe_consumer_metrics(*, event_name: str, result: str, total_started: float) -> None:
+    event_name_safe = event_name if event_name in SUPPORTED_EVENTS else 'unknown'
+    consumer_messages_total.labels(event_name=event_name_safe, result=result).inc()
+    consumer_processing_duration_seconds.labels(event_name=event_name_safe, result=result).observe(
+        max(perf_counter() - total_started, 0.0)
+    )
+
+
 def _handle_message(
     writer: ElasticIndexWriter,
     channel: pika.adapters.blocking_connection.BlockingChannel,
@@ -143,13 +159,18 @@ def _handle_message(
     db_failure_ms = 0.0
     parse_ms = 0.0
     queue_to_consumer_ms = 0.0
+    event_name = 'unknown'
 
     parse_started = perf_counter()
     try:
         event = _parse_event(body)
+        event_name = str(event.get('eventName', '')).strip() or 'unknown'
     except Exception as exc:
         parse_ms = (perf_counter() - parse_started) * 1000.0
         ingest_failed_total.inc()
+        consumer_failures_total.labels(stage='parse').inc()
+        _observe_consumer_metrics(event_name='unknown', result='failed', total_started=total_started)
+
         if fallback_correlation_id:
             db_failure_started = perf_counter()
             with session_factory() as session:
@@ -173,6 +194,8 @@ def _handle_message(
     correlation_id = _safe_correlation_id(event.get('correlationId'))
     if not correlation_id:
         ingest_failed_total.inc()
+        consumer_failures_total.labels(stage='validacao').inc()
+        _observe_consumer_metrics(event_name=event_name, result='failed', total_started=total_started)
         channel.basic_ack(delivery_tag=method.delivery_tag)
         logger.error('Mensagem sem correlation_id descartada pelo worker.')
         return
@@ -188,6 +211,8 @@ def _handle_message(
 
     if not message_id:
         ingest_failed_total.inc()
+        consumer_failures_total.labels(stage='db_lookup').inc()
+        _observe_consumer_metrics(event_name=event_name, result='failed', total_started=total_started)
         channel.basic_ack(delivery_tag=method.delivery_tag)
         logger.error('Mensagem recebida sem registro previo no banco. correlation_id=%s', correlation_id)
         return
@@ -217,6 +242,9 @@ def _handle_message(
             )
             elastic_ms = (perf_counter() - elastic_started) * 1000.0
             elastic_index_name = index_name
+            e2e_time_to_indexed_seconds.labels(event_name=event_name).observe(
+                max((app_now() - event_timestamp).total_seconds(), 0.0)
+            )
 
         db_finalize_started = perf_counter()
         with session_factory() as session:
@@ -227,6 +255,10 @@ def _handle_message(
                 elastic_index_name=elastic_index_name,
             )
         db_finalize_ms = (perf_counter() - db_finalize_started) * 1000.0
+        e2e_time_to_processed_seconds.labels(event_name=event_name).observe(
+            max((app_now() - event_timestamp).total_seconds(), 0.0)
+        )
+
         logger.info(
             (
                 'Processamento concluido no worker. correlation_id=%s '
@@ -242,8 +274,11 @@ def _handle_message(
             db_finalize_ms,
             (perf_counter() - total_started) * 1000.0,
         )
+        _observe_consumer_metrics(event_name=event_name, result='success', total_started=total_started)
     except Exception as exc:
         ingest_failed_total.inc()
+        consumer_failures_total.labels(stage='consumer').inc()
+
         db_failure_started = perf_counter()
         with session_factory() as session:
             service = MessagePersistenceService(session)
@@ -253,6 +288,9 @@ def _handle_message(
                 failed_reason=f'Falha no processamento da mensagem: {str(exc)[:900]}',
             )
         db_failure_ms = (perf_counter() - db_failure_started) * 1000.0
+
+        _observe_consumer_metrics(event_name=event_name, result='failed', total_started=total_started)
+
         if retry_count > settings.worker_retry_limit:
             logger.error(
                 (

@@ -17,6 +17,7 @@ class FailingPublisher:
 def client(monkeypatch):
     monkeypatch.setenv('DATABASE_URL', 'sqlite+pysqlite:///:memory:')
     monkeypatch.setenv('ENABLE_RABBIT', '0')
+    monkeypatch.setenv('BYPASS_ELASTIC_FOR_TESTS', '1')
     reload_settings()
 
     app = create_app()
@@ -69,10 +70,10 @@ def test_analyze_feed_time_window_123_returns_expected_error(client):
     response = client.post('/analyze-feed', json=payload)
 
     assert response.status_code == 422
-    assert response.json() == {
-        'error': 'Valor de janela temporal não suportado na versão atual',
-        'code': 'UNSUPPORTED_TIME_WINDOW',
-    }
+    body = response.json()
+    assert body['error'] == 'Valor de janela temporal não suportado na versão atual'
+    assert body['code'] == 'UNSUPPORTED_TIME_WINDOW'
+    assert 'correlation_id' in body
 
 
 def test_analyze_feed_invalid_user_id_returns_400(client):
@@ -120,6 +121,7 @@ def test_analyze_feed_invalid_views_invariant_returns_400(client):
 def test_analyze_feed_keeps_200_when_publisher_fails(monkeypatch):
     monkeypatch.setenv('DATABASE_URL', 'sqlite+pysqlite:///:memory:')
     monkeypatch.setenv('ENABLE_RABBIT', '1')
+    monkeypatch.setenv('BYPASS_ELASTIC_FOR_TESTS', '1')
     reload_settings()
 
     app = create_app()
@@ -138,7 +140,9 @@ def test_health_and_metrics_endpoints(client):
     docs_response = client.get('/docs')
 
     assert health_response.status_code == 200
-    assert health_response.json() == {'status': 'ok'}
+    health_body = health_response.json()
+    assert health_body['status'] == 'ok'
+    assert 'correlation_id' in health_body
 
     assert metrics_response.status_code == 200
     assert 'text/plain' in metrics_response.headers['content-type']

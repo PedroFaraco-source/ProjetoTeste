@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.infrastructure.db.repositories.message_repository import MessageRepository
+from app.infrastructure.monitoring.prometheus import tempo_db_ms
 from app.shared.utils.time import app_now
 
 
@@ -137,6 +138,17 @@ class BatchIngestFastpathUseCase:
         self.db.commit()
         timings_ms['commit'] = (perf_counter() - stage_started) * 1000.0
         timings_ms['total'] = (perf_counter() - total_started) * 1000.0
+
+        db_time_ms = (
+            timings_ms.get('query_existing_messages', 0.0)
+            + timings_ms.get('resolve_users', 0.0)
+            + timings_ms.get('insert_messages', 0.0)
+            + timings_ms.get('insert_processing', 0.0)
+            + timings_ms.get('insert_outbox', 0.0)
+            + timings_ms.get('flush', 0.0)
+            + timings_ms.get('commit', 0.0)
+        )
+        tempo_db_ms.labels(operation='ingest_batch_fastpath').observe(max(db_time_ms, 0.0))
         return BatchIngestResult(batch_id=batch_id, accepted=len(prepared), timings_ms=timings_ms)
 
     def _resolve_users_for_batch(self, entries: list[dict[str, Any]]) -> dict[str, str]:

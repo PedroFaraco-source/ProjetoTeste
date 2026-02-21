@@ -88,6 +88,8 @@ class Settings(BaseModel):
     elasticsearch_url: str = 'http://elasticsearch:9200'
     kibana_url: str = 'http://kibana:5601'
     elasticsearch_index_prefix: str = 'projetombras-api-events'
+    elastic_logs_index_prefix: str = 'projetombras-logs'
+    elastic_logs_template_name: str = 'projetombras-logs-template'
 
     sqlserver_host: str = 'localhost'
     sqlserver_port: int = 1434
@@ -115,6 +117,12 @@ class Settings(BaseModel):
 
     rabbit_publish_timeout_seconds: int = 2
     elastic_timeout_seconds: int = 2
+
+    elastic_http_log_queue_size: int = 5000
+    elastic_http_log_batch_size: int = 100
+    elastic_http_log_flush_interval_ms: int = 1000
+    http_log_include_stacktrace: bool = False
+    http_log_body_max_bytes: int = 65536
 
     @property
     def sqlalchemy_url(self) -> str:
@@ -150,6 +158,10 @@ def get_settings() -> Settings:
         elasticsearch_url=_resolve_service_url(os.getenv('ELASTICSEARCH_URL', 'http://elasticsearch:9200').strip()),
         kibana_url=os.getenv('KIBANA_URL', 'http://kibana:5601').strip(),
         elasticsearch_index_prefix=os.getenv('ELASTICSEARCH_INDEX_PREFIX', 'projetombras-api-events').strip(),
+        elastic_logs_index_prefix=os.getenv('ELASTIC_LOGS_INDEX_PREFIX', 'projetombras-logs').strip() or 'projetombras-logs',
+        elastic_logs_template_name=(
+            os.getenv('ELASTIC_LOGS_TEMPLATE_NAME', 'projetombras-logs-template').strip() or 'projetombras-logs-template'
+        ),
         sqlserver_host=_resolve_sqlserver_host(sqlserver_host_raw),
         sqlserver_port=_to_int(os.getenv('SQLSERVER_PORT'), 1434),
         sqlserver_database=os.getenv('SQLSERVER_DATABASE', 'ProjetoMBras').strip(),
@@ -172,6 +184,13 @@ def get_settings() -> Settings:
         outbox_lock_timeout_seconds=_to_int(os.getenv('OUTBOX_LOCK_TIMEOUT_SECONDS'), 30),
         outbox_batch_size=_to_int(os.getenv('OUTBOX_BATCH_SIZE'), 200),
         outbox_worker_id=(os.getenv('OUTBOX_WORKER_ID', 'outbox-worker-local').strip() or 'outbox-worker-local'),
+        rabbit_publish_timeout_seconds=_to_int(os.getenv('RABBIT_PUBLISH_TIMEOUT_SECONDS'), 2),
+        elastic_timeout_seconds=_to_int(os.getenv('ELASTIC_TIMEOUT_SECONDS'), 2),
+        elastic_http_log_queue_size=_to_int(os.getenv('ELASTIC_HTTP_LOG_QUEUE_SIZE'), 5000),
+        elastic_http_log_batch_size=_to_int(os.getenv('ELASTIC_HTTP_LOG_BATCH_SIZE'), 100),
+        elastic_http_log_flush_interval_ms=_to_int(os.getenv('ELASTIC_HTTP_LOG_FLUSH_INTERVAL_MS'), 1000),
+        http_log_include_stacktrace=_to_bool(os.getenv('HTTP_LOG_INCLUDE_STACKTRACE'), False),
+        http_log_body_max_bytes=_to_int(os.getenv('HTTP_LOG_BODY_MAX_BYTES'), 65536),
     )
 
 

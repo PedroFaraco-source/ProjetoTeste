@@ -2,6 +2,7 @@
 
 import json
 import logging
+from time import perf_counter
 from typing import Any
 
 try:
@@ -9,8 +10,12 @@ try:
 except ModuleNotFoundError:
     pika = None
 
-from app.infrastructure.monitoring.prometheus import rabbit_publish_failures_total
 from app.core.config.settings import get_settings
+from app.infrastructure.monitoring.prometheus import (
+    rabbit_publish_duration_seconds,
+    rabbit_publish_failures_total,
+    rabbit_publish_total,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +58,7 @@ class RabbitMQBus:
             return False
 
         safe_correlation_id = str(event.get('correlationId', 'sem-correlation-id'))[:100]
+        started_at = perf_counter()
         try:
             channel = self._ensure_channel()
             body = json.dumps(event, ensure_ascii=False).encode('utf-8')
@@ -69,8 +75,14 @@ class RabbitMQBus:
                 properties=properties,
                 mandatory=False,
             )
+            duration = max(perf_counter() - started_at, 0.0)
+            rabbit_publish_total.labels(result='success').inc()
+            rabbit_publish_duration_seconds.labels(result='success').observe(duration)
             return True
         except Exception:
+            duration = max(perf_counter() - started_at, 0.0)
+            rabbit_publish_total.labels(result='failure').inc()
+            rabbit_publish_duration_seconds.labels(result='failure').observe(duration)
             rabbit_publish_failures_total.inc()
             logger.error('Falha ao publicar evento no RabbitMQ. correlation_id=%s', safe_correlation_id)
             self.close()

@@ -1,4 +1,4 @@
-{
+﻿{
   "annotations": {
     "list": [
       {
@@ -32,7 +32,6 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -50,8 +49,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
-        "w": 8,
+        "h": 5,
+        "w": 6,
         "x": 0,
         "y": 0
       },
@@ -70,11 +69,10 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "11.0.0",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "up{job=\"projetombras-api\"}",
+          "expr": "max(up{job=~\"$job\", instance=~\"$instance\"})",
           "legendFormat": "",
           "range": true,
           "refId": "A"
@@ -97,15 +95,14 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 8,
+        "h": 5,
+        "w": 6,
+        "x": 6,
         "y": 0
       },
       "id": 2,
       "options": {
         "legend": {
-          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": false
@@ -115,11 +112,10 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.0.0",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(http_requests_total{job=\"projetombras-api\"}[1m]))",
+          "expr": "sum(rate(http_requests_total{job=~\"$job\",instance=~\"$instance\",path=~\"$path\"}[1m]))",
           "legendFormat": "req/s",
           "range": true,
           "refId": "A"
@@ -143,15 +139,14 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 16,
+        "h": 5,
+        "w": 6,
+        "x": 12,
         "y": 0
       },
       "id": 3,
       "options": {
         "legend": {
-          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
@@ -161,11 +156,10 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.0.0",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "1000 * histogram_quantile(0.95, sum by (le, path, method) (rate(http_request_duration_seconds_bucket{job=\"projetombras-api\"}[5m])))",
+          "expr": "1000 * histogram_quantile(0.95, sum by (le, path, method) (rate(http_request_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\",path=~\"$path\"}[5m])))",
           "legendFormat": "{{method}} {{path}}",
           "range": true,
           "refId": "A"
@@ -188,15 +182,14 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 6
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 0
       },
       "id": 4,
       "options": {
         "legend": {
-          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": false
@@ -206,11 +199,10 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.0.0",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(http_requests_total{job=\"projetombras-api\", status=~\"4..|5..\"}[1m]))",
+          "expr": "sum(rate(http_requests_total{job=~\"$job\",instance=~\"$instance\",path=~\"$path\",status=~\"4..|5..\"}[1m]))",
           "legendFormat": "error/s",
           "range": true,
           "refId": "A"
@@ -233,15 +225,14 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 5,
         "w": 6,
-        "x": 12,
-        "y": 6
+        "x": 0,
+        "y": 5
       },
       "id": 5,
       "options": {
         "legend": {
-          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": false
@@ -251,11 +242,10 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.0.0",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(rabbit_publish_failures_total{job=\"projetombras-api\"}[5m]))",
+          "expr": "sum(rate(rabbit_publish_failures_total{job=~\"$job\",instance=~\"$instance\"}[5m]))",
           "legendFormat": "rabbit_fail/s",
           "range": true,
           "refId": "A"
@@ -278,15 +268,14 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 5,
         "w": 6,
-        "x": 18,
-        "y": 6
+        "x": 6,
+        "y": 5
       },
       "id": 6,
       "options": {
         "legend": {
-          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": false
@@ -296,11 +285,10 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "11.0.0",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(ingest_processed_total{job=\"projetombras-api\"}[1m]))",
+          "expr": "sum(rate(ingest_processed_total{job=~\"$job\",instance=~\"$instance\"}[1m]))",
           "legendFormat": "ingest/s",
           "range": true,
           "refId": "A"
@@ -308,6 +296,476 @@
       ],
       "title": "Ingest Processed Rate",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 5
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(http_inflight_requests{job=~\"$job\",instance=~\"$instance\"})",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Inflight Requests",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 5
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, operation) (rate(tempo_db_ms_bucket{job=~\"$job\",instance=~\"$instance\"}[5m])))",
+          "legendFormat": "{{operation}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "DB Fast-Path P95 (ms)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "ACK latency p50/p95 per method+path.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "1000 * histogram_quantile(0.50, sum by (le, method, path) (rate(http_ack_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\",path=~\"$path\"}[5m])))",
+          "legendFormat": "p50 {{method}} {{path}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "1000 * histogram_quantile(0.95, sum by (le, method, path) (rate(http_ack_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\",path=~\"$path\"}[5m])))",
+          "legendFormat": "p95 {{method}} {{path}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "ACK Latency p50/p95 (ms)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "2xx/4xx/5xx stacked by path.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "stacking": {
+          "group": "A",
+          "mode": "normal"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (path, status_class) (rate(http_requests_status_class_total{job=~\"$job\",instance=~\"$instance\",path=~\"$path\"}[5m]))",
+          "legendFormat": "{{path}} {{status_class}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "2xx/4xx/5xx by Path (rate)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Top 5 paths by 5xx. Use correlation_id in Elastic for details.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "id": 11,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Value"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "topk(5, sum by (path) (rate(http_requests_total{job=~\"$job\",instance=~\"$instance\",status=~\"5..\"}[5m])))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{path}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Top 5 Paths by 5xx",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 18
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (stage) (rate(consumer_failures_total{job=~\"$job\",instance=~\"$instance\"}[5m]))",
+          "legendFormat": "{{stage}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Consumer Failures Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "error_rate.*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ops"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 18
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "1000 * histogram_quantile(0.95, sum by (le, operation) (rate(elastic_bulk_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[5m])))",
+          "legendFormat": "p95 {{operation}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "sum by (operation) (rate(elastic_bulk_errors_total{job=~\"$job\",instance=~\"$instance\"}[5m]))",
+          "legendFormat": "error_rate {{operation}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Elastic Bulk p95 + Error Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "1000 * histogram_quantile(0.95, sum by (le, event_name) (rate(e2e_time_to_processed_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[5m])))",
+          "legendFormat": "processed {{event_name}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "1000 * histogram_quantile(0.95, sum by (le, event_name) (rate(e2e_time_to_indexed_seconds_bucket{job=~\"$job\",instance=~\"$instance\"}[5m])))",
+          "legendFormat": "indexed {{event_name}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "E2E p95 Time to Processed/Indexed",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Top error reasons from bounded exception_type counters. For full details, search Elastic logs by correlation_id.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "id": 15,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Value"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "topk(10, sum by (exception_type) (increase(http_exception_total{job=~\"$job\",instance=~\"$instance\"}[$__range])))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{exception_type}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Top Error Reasons (exception_type)",
+      "type": "table"
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "id": 16,
+      "options": {
+        "content": "## Runbook\n\n- Find a request in Elastic by correlation_id:\n  - Open Grafana Explore\n  - Select Elastic datasource\n  - Index: `projetombras-logs-*`\n  - Query: `correlation_id:\"<id>\"`\n\n- Link metrics spikes to logs:\n  - Identify spike panel/time range here\n  - Open Explore in same time range\n  - Query by `path` and `status_code` first\n  - Narrow using `correlation_id` from failing samples\n\n- Suggested Explore query examples:\n  - `event:\"http_request\" AND status_code:[500 TO 599]`\n  - `event:\"http_request\" AND path:\"/analyze-feed\"`",
+        "mode": "markdown"
+      },
+      "title": "Runbook",
+      "type": "text"
     }
   ],
   "refresh": "10s",
@@ -315,7 +773,8 @@
   "style": "dark",
   "tags": [
     "projetombras",
-    "prometheus"
+    "prometheus",
+    "elastic"
   ],
   "templating": {
     "list": [
@@ -336,6 +795,86 @@
         "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "projetombras-api",
+          "value": "projetombras-api"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(up, job)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "job",
+        "multi": false,
+        "name": "job",
+        "options": [],
+        "query": {
+          "query": "label_values(up, job)",
+          "refId": "PrometheusVariableQueryEditor-Job"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(up{job=~\"$job\"}, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".*",
+        "label": "instance",
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "query": "label_values(up{job=~\"$job\"}, instance)",
+          "refId": "PrometheusVariableQueryEditor-Instance"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(http_requests_total{job=~\"$job\",instance=~\"$instance\"}, path)",
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".*",
+        "label": "path",
+        "multi": true,
+        "name": "path",
+        "options": [],
+        "query": {
+          "query": "label_values(http_requests_total{job=~\"$job\",instance=~\"$instance\"}, path)",
+          "refId": "PrometheusVariableQueryEditor-Path"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "query"
       }
     ]
   },
@@ -347,6 +886,6 @@
   "timezone": "",
   "title": "ProjetoMBras API Overview",
   "uid": "projetombras-api-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
